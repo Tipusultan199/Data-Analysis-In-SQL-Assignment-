@@ -1,3 +1,132 @@
+-- Top 5 directors with the highest average score for their movies:
+SELECT c.name AS director, 
+       ROUND(AVG(t.imdb_score),2) AS avg_imdb_score
+  FROM shows_movies.credits AS c
+  JOIN shows_movies.titles AS t 
+    ON c.id = t.id
+ WHERE c.role = 'director'
+   AND t.type = 'Movie'
+ GROUP BY c.name
+ ORDER BY avg_imdb_score DESC
+ LIMIT 5;
+
+
+--Average IMDB score and total number of titles per director:
+SELECT c.name AS director, 
+       ROUND(AVG(t.imdb_score),2) AS avg_imdb_score,
+       COUNT(*) AS total_titles
+  FROM shows_movies.credits AS c
+  JOIN shows_movies.titles AS t 
+    ON c.id = t.id
+ WHERE c.role = 'director'
+ GROUP BY c.name
+ ORDER BY avg_imdb_score DESC;
+
+--Top 10 actors who have appeared in the most genres of movies or shows:
+SELECT c.name AS actor_actress, 
+       COUNT(DISTINCT t.genres) AS num_genres
+  FROM shows_movies.credits AS c
+  JOIN shows_movies.titles AS t 
+    ON c.id = t.id
+ WHERE c.role IN ('actor', 'actress')
+ GROUP BY c.name
+ ORDER BY num_genres DESC
+ LIMIT 10;
+
+--Directors who have directed both movies and shows, along with the count:
+
+SELECT c.name AS director, 
+       COUNT(DISTINCT t.type) AS num_content_types
+  FROM shows_movies.credits AS c
+  JOIN shows_movies.titles AS t 
+    ON c.id = t.id
+ WHERE c.role = 'director'
+ GROUP BY c.name
+ HAVING COUNT(DISTINCT t.type) > 1;
+
+--Top 5 most common genres for movies released in the 21st century (2000 onwards):
+SELECT t.genres, 
+       COUNT(*) AS title_count
+  FROM shows_movies.titles AS t
+ WHERE t.type = 'Movie'
+   AND t.release_year >= 2000
+ GROUP BY t.genres
+ ORDER BY title_count DESC
+ LIMIT 5;
+
+--Rank directors by the number of titles they have directed:
+SELECT director, 
+       COUNT(*) AS num_titles,
+       RANK() OVER (ORDER BY COUNT(*) DESC) AS title_rank
+  FROM (
+        SELECT DISTINCT c.name AS director, 
+                        t.title
+          FROM shows_movies.credits AS c
+          JOIN shows_movies.titles AS t 
+            ON c.id = t.id
+         WHERE c.role = 'director'
+       ) AS director_titles
+ GROUP BY director
+ ORDER BY num_titles DESC;
+
+--Find the top 3 actors who have appeared in the most recent movies:
+SELECT actor,
+       COUNT(*) AS num_movies,
+       RANK() OVER (ORDER BY COUNT(*) DESC) AS movie_rank
+  FROM (
+        SELECT DISTINCT c.name AS actor, 
+                        t.title,
+                        MAX(t.release_year) OVER (PARTITION BY c.name) AS latest_release_year
+          FROM shows_movies.credits AS c
+          JOIN shows_movies.titles AS t 
+            ON c.id = t.id
+         WHERE c.role = 'actor'
+           AND t.type = 'Movie'
+       ) AS actor_movies
+ WHERE latest_release_year = (SELECT MAX(release_year) FROM shows_movies.titles)
+ GROUP BY actor
+ ORDER BY num_movies DESC
+ LIMIT 3;
+
+--Calculate the cumulative count of titles released each year:
+
+SELECT release_year, 
+       COUNT(*) AS title_count,
+       SUM(COUNT(*)) OVER (ORDER BY release_year) AS cumulative_count
+  FROM shows_movies.titles 
+ GROUP BY release_year
+ ORDER BY release_year;
+
+--Rank actors by the number of genres they have appeared in:
+SELECT actor_actress, 
+       COUNT(DISTINCT genres) AS num_genres,
+       RANK() OVER (ORDER BY COUNT(DISTINCT genres) DESC) AS genre_rank
+  FROM shows_movies.credits AS c
+  JOIN shows_movies.titles AS t 
+    ON c.id = t.id
+ WHERE c.role IN ('actor', 'actress')
+ GROUP BY actor_actress
+ ORDER BY num_genres DESC;
+
+--Calculate the running total of titles per director:
+
+SELECT director, 
+       COUNT(*) AS num_titles,
+       SUM(COUNT(*)) OVER (ORDER BY COUNT(*) DESC) AS running_total
+  FROM (
+        SELECT DISTINCT c.name AS director, 
+                        t.title
+          FROM shows_movies.credits AS c
+          JOIN shows_movies.titles AS t 
+            ON c.id = t.id
+         WHERE c.role = 'director'
+       ) AS director_titles
+ GROUP BY director
+ ORDER BY num_titles DESC;
+
+
+
+
 -- Top 10 movies according to IMDB score
 SELECT title, 
        type, 
